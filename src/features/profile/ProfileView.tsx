@@ -174,19 +174,87 @@ export function ProfileView() {
       <div className="card">
         <div className="section-label">Intégrations</div>
         <div className="row between">
-          <span className="body-md">Strava</span>
-          <span className="badge badge--amber">Bientôt</span>
-        </div>
-        <hr className="divider" style={{ margin: '12px 0' }} />
-        <div className="row between">
-          <span className="body-md">Garmin (sommeil)</span>
-          <span className="badge badge--amber">Phase 5</span>
+          <span className="body-md">Strava (activités)</span>
+          <span className="body-sm">Connexion depuis l'accueil</span>
         </div>
       </div>
+
+      <GarminCard />
 
       <button className="btn btn--danger full" onClick={logout}>
         Se déconnecter
       </button>
+    </div>
+  );
+}
+
+function GarminCard() {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+
+  const { data } = useQuery({
+    queryKey: ['garmin-status'],
+    queryFn: () => api.get<{ connected: boolean; profile_name: string | null; last_sync_at: string | null }>('/garmin/status'),
+  });
+
+  function refetchSleep() {
+    qc.invalidateQueries({ queryKey: ['garmin-status'] });
+    qc.invalidateQueries({ queryKey: ['sleep'] });
+    qc.invalidateQueries({ queryKey: ['dashboard'] });
+  }
+
+  async function connect() {
+    setBusy(true); setMsg(null); setErr(false);
+    try {
+      const r = await api.post<{ imported: number }>('/garmin/connect', { email, password });
+      setPassword('');
+      setMsg(`Connecté — ${r.imported} nuits importées.`);
+      refetchSleep();
+    } catch (e) { setErr(true); setMsg(e instanceof Error ? e.message : 'Échec de connexion.'); }
+    finally { setBusy(false); }
+  }
+  async function sync() {
+    setBusy(true); setErr(false);
+    try { const r = await api.post<{ imported: number }>('/garmin/sync'); setMsg(`${r.imported} nuits synchronisées.`); refetchSleep(); }
+    catch (e) { setErr(true); setMsg(e instanceof Error ? e.message : 'Échec.'); }
+    finally { setBusy(false); }
+  }
+  async function disconnect() {
+    await api.del('/garmin/disconnect').catch(() => {});
+    setMsg(null);
+    qc.invalidateQueries({ queryKey: ['garmin-status'] });
+  }
+
+  return (
+    <div className="card">
+      <div className="section-label">⌚ Garmin — sommeil</div>
+      {data?.connected ? (
+        <div className="stack" style={{ gap: 10 }}>
+          <div className="row between">
+            <span className="body-md">{data.profile_name || 'Compte connecté'}</span>
+            <span className="badge badge--green">connecté</span>
+          </div>
+          {data.last_sync_at && <span className="body-sm">Dernière sync : {new Date(data.last_sync_at).toLocaleString('fr')}</span>}
+          {msg && <span className={`body-sm ${err ? 'text-danger' : 'text-plasma'}`}>{msg}</span>}
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn--secondary btn--sm" onClick={sync} disabled={busy}>{busy ? <span className="spin" /> : '↻ Synchroniser'}</button>
+            <button className="btn btn--danger btn--sm" onClick={disconnect}>Déconnecter</button>
+          </div>
+        </div>
+      ) : (
+        <div className="stack" style={{ gap: 8 }}>
+          <span className="body-sm">Importe ton sommeil réel (durée, phases, FC repos) depuis ton compte Garmin Connect.</span>
+          <input className="input" type="email" placeholder="Email Garmin" value={email} onChange={e => setEmail(e.target.value)} />
+          <input className="input" type="password" placeholder="Mot de passe Garmin" value={password} onChange={e => setPassword(e.target.value)} />
+          {msg && <span className={`body-sm ${err ? 'text-danger' : 'text-plasma'}`}>{msg}</span>}
+          <button className="btn btn--glass full" onClick={connect} disabled={busy || !email || !password}>{busy ? <span className="spin" /> : '⌚ Connecter Garmin'}</button>
+          <span className="body-sm" style={{ color: 'var(--text-muted)' }}>🔒 Tes identifiants servent uniquement à obtenir un jeton sécurisé ; le mot de passe n'est jamais conservé.</span>
+        </div>
+      )}
     </div>
   );
 }
