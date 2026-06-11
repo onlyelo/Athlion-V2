@@ -1,220 +1,198 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { sportMeta } from '../../lib/sport';
 
-interface TrainingSession {
-  id: string;
-  date: string;
-  sport: string | null;
-  name: string | null;
-  status: string;
-  duration_min: number | null;
-  distance_m: number | null;
-  tss: number | null;
-  intensity_zone: string | null;
-  completion_ratio: number | null;
+interface Session {
+  id: string; date: string; sport: string | null; name: string | null; status: string;
+  duration_min: number | null; distance_m: number | null; tss: number | null;
+  intensity_zone: string | null; prescribed: { detail?: string } | null;
+  completion_ratio: number | null; adaptation_reason: string | null;
 }
+interface Goal { id: string; horizon: 'short' | 'mid' | 'long'; title: string; type: string | null; target_date: string | null; }
+interface Level { sport: string; level_estimate: number; confidence: number; }
+interface GenResult { week: { label: string; weeklyTssTarget: number; intensity: string; deload: boolean }; count: number; }
 
-const SPORT_ICON: Record<string, string> = { run: '🏃', bike: '🚴', swim: '🏊', strength: '💪' };
-const SPORT_CSS: Record<string, string> = { run: 'run', bike: 'bike', swim: 'swim', strength: 'nutrition' };
-const STATUS_BADGE: Record<string, string> = {
-  planned: 'badge--blue',
-  completed: 'badge--green',
-  missed: 'badge--red',
-  partial: 'badge--amber',
-};
-const STATUS_FR: Record<string, string> = {
-  planned: 'planifiée',
-  completed: 'terminée',
-  missed: 'manquée',
-  partial: 'partielle',
-};
+const HORIZON = { short: 'Court terme', mid: 'Moyen terme', long: 'Long terme' };
+const STATUS_BADGE: Record<string, string> = { planned: 'badge--blue', completed: 'badge--green', skipped: 'badge--red', modified: 'badge--amber' };
 
 export function PlanningView() {
   const qc = useQueryClient();
-  const today = new Date().toISOString().slice(0, 10);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    date: today,
-    sport: 'run',
-    name: '',
-    duration_min: 60,
-    intensity_zone: 'Z2',
-  });
+  const [generating, setGenerating] = useState(false);
+  const [genInfo, setGenInfo] = useState<GenResult['week'] | null>(null);
+  const [showGoal, setShowGoal] = useState(false);
+  const [goalForm, setGoalForm] = useState({ title: '', horizon: 'mid' as Goal['horizon'], target_date: '' });
+  const [reconcileId, setReconcileId] = useState<string | null>(null);
 
-  const { data: sessions, isLoading } = useQuery({
-    queryKey: ['sessions'],
-    queryFn: () => api.get<TrainingSession[]>('/training/sessions'),
-  });
+  const { data: sessions } = useQuery({ queryKey: ['sessions'], queryFn: () => api.get<Session[]>('/training/sessions?from=' + weekStart() + '&to=' + weekEnd()) });
+  const { data: goals } = useQuery({ queryKey: ['goals'], queryFn: () => api.get<Goal[]>('/training/goals') });
+  const { data: levels } = useQuery({ queryKey: ['levels'], queryFn: () => api.get<Level[]>('/training/levels') });
 
-  async function addSession() {
-    setSaving(true);
-    await api.post('/training/sessions', { ...form, name: form.name || undefined });
-    await qc.invalidateQueries({ queryKey: ['sessions'] });
-    await qc.invalidateQueries({ queryKey: ['dashboard'] });
-    setAdding(false);
-    setSaving(false);
-    setForm(f => ({ ...f, name: '', date: today }));
+  async function generate() {
+    setGenerating(true);
+    try {
+      const r = await api.post<GenResult>('/training/generate');
+      setGenInfo(r.week);
+      await qc.invalidateQueries({ queryKey: ['sessions'] });
+    } catch {
+      setGenInfo(null);
+      alert("La génération a échoué. Réessaie dans un instant.");
+    } finally { setGenerating(false); }
   }
 
-  const sorted = sessions ? [...sessions].sort((a, b) => b.date.localeCompare(a.date)) : [];
-  const upcoming = sorted.filter(s => s.date >= today && s.status === 'planned');
-  const past = sorted.filter(s => s.date < today || s.status !== 'planned');
+  async function addGoal() {
+    if (!goalForm.title) return;
+    await api.post('/training/goals', { ...goalForm, target_date: goalForm.target_date || undefined });
+    setGoalForm({ title: '', horizon: 'mid', target_date: '' });
+    setShowGoal(false);
+    qc.invalidateQueries({ queryKey: ['goals'] });
+  }
+  async function delGoal(id: string) { await api.del(`/training/goals/${id}`).catch(() => {}); qc.invalidateQueries({ queryKey: ['goals'] }); }
+
+  const sorted = sessions ? [...sessions].sort((a, b) => a.date.localeCompare(b.date)) : [];
 
   return (
     <div className="stack">
       <div className="row between">
         <h1 className="heading-1">Planning</h1>
-        <button
-          className={`btn btn--sm ${adding ? 'btn--ghost' : 'btn--primary'}`}
-          onClick={() => setAdding(a => !a)}
-        >
-          {adding ? 'Annuler' : '+ Séance'}
+        <button className="btn btn--primary btn--sm" onClick={generate} disabled={generating}>
+          {generating ? <span className="spin" /> : '✦ Générer ma semaine'}
         </button>
       </div>
 
-      {/* Formulaire ajout */}
-      {adding && (
+      {/* Phase de périodisation (après génération) */}
+      {genInfo && (
+        <div className="card-glass">
+          <div className="section-label">Phase — {genInfo.label}{genInfo.deload ? ' · décharge' : ''}</div>
+          <div className="row between">
+            <span className="body-sm">{genInfo.intensity}</span>
+            <span className="mono">~{genInfo.weeklyTssTarget} TSS</span>
+          </div>
+        </div>
+      )}
+
+      {/* Objectifs */}
+      <div className="card">
+        <div className="row between" style={{ marginBottom: 4 }}>
+          <div className="section-label" style={{ marginBottom: 0 }}>Objectifs</div>
+          <button className="btn btn--ghost btn--sm" onClick={() => setShowGoal(s => !s)}>{showGoal ? 'Annuler' : '+ Objectif'}</button>
+        </div>
+        {showGoal && (
+          <div className="stack" style={{ gap: 8, marginBottom: 12 }}>
+            <input className="input" placeholder="ex : Triathlon M de Nice" value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} />
+            <div className="grid grid-2">
+              <select className="input" value={goalForm.horizon} onChange={e => setGoalForm(f => ({ ...f, horizon: e.target.value as Goal['horizon'] }))}>
+                <option value="short">Court terme</option>
+                <option value="mid">Moyen terme</option>
+                <option value="long">Long terme</option>
+              </select>
+              <input className="input" type="date" value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))} />
+            </div>
+            <button className="btn btn--primary full" onClick={addGoal}>Ajouter l'objectif</button>
+          </div>
+        )}
+        {goals && goals.length > 0 ? (
+          <div className="stack" style={{ gap: 8 }}>
+            {goals.map(g => (
+              <div key={g.id} className="row between">
+                <div>
+                  <span className="body-md">{g.title}</span>
+                  <div className="activity-sub">{HORIZON[g.horizon]}{g.target_date ? ` · ${new Date(g.target_date).toLocaleDateString('fr')}` : ''}</div>
+                </div>
+                <button className="pin-btn" onClick={() => delGoal(g.id)} title="Retirer">✕</button>
+              </div>
+            ))}
+          </div>
+        ) : <span className="body-sm">Ajoute un objectif pour orienter la périodisation.</span>}
+      </div>
+
+      {/* Niveaux par discipline */}
+      {levels && levels.length > 0 && (
         <div className="card">
-          <div className="section-label">Nouvelle séance</div>
-          <div className="stack" style={{ gap: 10 }}>
-            <div className="grid grid-2">
-              <div>
-                <span className="body-sm" style={{ display: 'block', marginBottom: 4 }}>Date</span>
-                <input
-                  className="input"
-                  type="date"
-                  value={form.date}
-                  onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                />
-              </div>
-              <div>
-                <span className="body-sm" style={{ display: 'block', marginBottom: 4 }}>Sport</span>
-                <select
-                  className="input"
-                  value={form.sport}
-                  onChange={e => setForm(f => ({ ...f, sport: e.target.value }))}
-                >
-                  <option value="run">Course à pied</option>
-                  <option value="bike">Vélo</option>
-                  <option value="swim">Natation</option>
-                  <option value="strength">Renforcement</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <span className="body-sm" style={{ display: 'block', marginBottom: 4 }}>
-                Nom de la séance
-              </span>
-              <input
-                className="input"
-                placeholder="ex : Footing Z2, Seuil 4×1km…"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-2">
-              <div>
-                <span className="body-sm" style={{ display: 'block', marginBottom: 4 }}>Durée (min)</span>
-                <input
-                  className="input"
-                  type="number"
-                  min={5}
-                  value={form.duration_min}
-                  onChange={e => setForm(f => ({ ...f, duration_min: Number(e.target.value) }))}
-                />
-              </div>
-              <div>
-                <span className="body-sm" style={{ display: 'block', marginBottom: 4 }}>Zone</span>
-                <select
-                  className="input"
-                  value={form.intensity_zone}
-                  onChange={e => setForm(f => ({ ...f, intensity_zone: e.target.value }))}
-                >
-                  {['Z1', 'Z2', 'Z3', 'Z4', 'Z5'].map(z => (
-                    <option key={z}>{z}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <button
-              className="btn btn--primary full"
-              onClick={addSession}
-              disabled={saving}
-            >
-              {saving ? 'Ajout…' : 'Ajouter la séance'}
-            </button>
+          <div className="section-label">Niveaux estimés</div>
+          <div className="grid grid-3">
+            {levels.map(l => {
+              const m = sportMeta(l.sport);
+              return (
+                <div key={l.sport} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 20 }}>{m.icon}</div>
+                  <div className="heading-2">{Math.round(l.level_estimate)}</div>
+                  <span className="label">{m.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {isLoading && <span className="label">Chargement…</span>}
-
-      {/* Séances à venir */}
-      {upcoming.length > 0 && (
-        <>
-          <div className="section-label" style={{ marginBottom: 0 }}>À venir</div>
-          <div className="stack" style={{ gap: 8 }}>
-            {upcoming.map(s => <SessionRow key={s.id} s={s} />)}
-          </div>
-        </>
-      )}
-
-      {/* Historique */}
-      {past.length > 0 && (
-        <>
-          <div className="section-label" style={{ marginBottom: 0 }}>Historique · 28j</div>
-          <div className="stack" style={{ gap: 8 }}>
-            {past.slice(0, 20).map(s => <SessionRow key={s.id} s={s} />)}
-          </div>
-        </>
-      )}
-
-      {!isLoading && sorted.length === 0 && (
-        <div className="card" style={{ textAlign: 'center', padding: 32 }}>
-          <span className="body-sm">Aucune séance sur les 28 derniers jours.</span>
-          <br />
-          <span className="body-sm" style={{ color: 'var(--text-muted)' }}>
-            Planifie ta première séance ci-dessus.
-          </span>
+      {/* Semaine */}
+      <div className="section-label" style={{ marginBottom: 0 }}>Ma semaine</div>
+      {sorted.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', padding: 28 }}>
+          <span className="body-sm">Aucune séance planifiée.<br />Lance « Générer ma semaine » pour un plan IA adapté à ta forme et tes objectifs.</span>
         </div>
       )}
+      <div className="stack" style={{ gap: 8 }}>
+        {sorted.map(s => (
+          <SessionCard key={s.id} s={s} open={reconcileId === s.id} onToggle={() => setReconcileId(id => id === s.id ? null : s.id)} onDone={() => { setReconcileId(null); qc.invalidateQueries({ queryKey: ['sessions'] }); qc.invalidateQueries({ queryKey: ['levels'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); }} />
+        ))}
+      </div>
     </div>
   );
 }
 
-function SessionRow({ s }: { s: TrainingSession }) {
-  const sport = s.sport ?? 'run';
-  const km = s.distance_m ? (s.distance_m / 1000).toFixed(1) : null;
+function SessionCard({ s, open, onToggle, onDone }: { s: Session; open: boolean; onToggle: () => void; onDone: () => void }) {
+  const m = sportMeta(s.sport ?? 'run');
+  const [dur, setDur] = useState(s.duration_min ?? 0);
+  const [verdict, setVerdict] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setBusy(true);
+    try {
+      const r = await api.post<{ verdict: string; ratio: number }>(`/training/sessions/${s.id}/reconcile`, { executed: { duration_min: dur } });
+      setVerdict(r.verdict);
+      setTimeout(onDone, 1200);
+    } finally { setBusy(false); }
+  }
 
   return (
-    <div className="activity-item">
-      <div className={`activity-icon activity-icon--${SPORT_CSS[sport] ?? 'run'}`}>
-        {SPORT_ICON[sport] ?? '🏅'}
-      </div>
-      <div className="activity-info">
-        <div className="activity-title">{s.name || sport}</div>
-        <div className="activity-sub">
-          {s.date}
-          {s.duration_min ? ` · ${s.duration_min} min` : ''}
-          {km ? ` · ${km} km` : ''}
-          {s.intensity_zone ? ` · ${s.intensity_zone}` : ''}
+    <div className="card" style={{ padding: '12px 14px' }}>
+      <div className="row between">
+        <div className="row" style={{ gap: 12 }}>
+          <div className={`activity-icon activity-icon--${m.accent === 'hike' ? 'nutrition' : m.accent === 'swim' ? 'swim' : m.accent === 'bike' ? 'bike' : 'run'}`}>{m.icon}</div>
+          <div>
+            <div className="activity-title">{s.name || m.label}</div>
+            <div className="activity-sub">
+              {new Date(s.date).toLocaleDateString('fr', { weekday: 'short', day: 'numeric' })}
+              {s.duration_min ? ` · ${s.duration_min} min` : ''}{s.intensity_zone ? ` · ${s.intensity_zone}` : ''}{s.tss ? ` · ${Math.round(s.tss)} TSS` : ''}
+            </div>
+          </div>
         </div>
+        <span className={`badge ${STATUS_BADGE[s.status] || 'badge--blue'}`}>{s.status === 'planned' ? 'à faire' : s.status === 'completed' ? `${s.completion_ratio != null ? Math.round(s.completion_ratio * 100) + '%' : 'fait'}` : s.status}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-        <span className={`badge ${STATUS_BADGE[s.status] ?? 'badge--blue'}`}>
-          {STATUS_FR[s.status] ?? s.status}
-        </span>
-        {s.tss != null && (
-          <span className="mono" style={{ fontSize: 11 }}>TSS {Math.round(s.tss)}</span>
-        )}
-        {s.completion_ratio != null && (
-          <span className="mono" style={{ fontSize: 11 }}>
-            {Math.round(s.completion_ratio * 100)}%
-          </span>
-        )}
-      </div>
+
+      {s.prescribed?.detail && <div className="body-sm" style={{ marginTop: 8, color: 'var(--ice)' }}>📋 {s.prescribed.detail}</div>}
+
+      {s.status === 'planned' && (
+        <div style={{ marginTop: 10 }}>
+          {!open ? (
+            <button className="btn btn--secondary btn--sm full" onClick={onToggle}>✓ Saisir le réalisé</button>
+          ) : verdict ? (
+            <div className={`badge ${verdict === 'success' ? 'badge--green' : verdict === 'fail' ? 'badge--red' : 'badge--amber'}`} style={{ width: '100%', justifyContent: 'center', padding: 8 }}>
+              {verdict === 'success' ? '✓ Réussie — niveau ↗' : verdict === 'fail' ? '✗ Échec — niveau ↘' : 'Partielle'}
+            </div>
+          ) : (
+            <div className="row" style={{ gap: 8 }}>
+              <input className="input" type="number" value={dur} onChange={e => setDur(Number(e.target.value))} placeholder="durée réalisée (min)" />
+              <button className="btn btn--primary btn--sm" onClick={submit} disabled={busy}>{busy ? <span className="spin" /> : 'Valider'}</button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+function weekStart() { const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); return d.toISOString().slice(0, 10); }
+function weekEnd() { const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day + 13); return d.toISOString().slice(0, 10); }
