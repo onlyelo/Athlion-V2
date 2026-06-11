@@ -3,7 +3,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { LineChart, BarChart } from '../../components/Charts';
 import { sportMeta, fmtKm, fmtElev, fmtH, fmtPace, paceLabel } from '../../lib/sport';
-import type { DashboardData, StravaSummary, StravaStatus, SportStat } from '../../types';
+import type { DashboardData, StravaSummary, StravaStatus, SportStat, StravaActivity } from '../../types';
+
+const normSport = (s: string) => {
+  const t = (s || '').toLowerCase();
+  if (t.includes('run')) return 'run';
+  if (t.includes('ride') || t.includes('bike') || t.includes('cycl')) return 'bike';
+  if (t.includes('swim')) return 'swim';
+  if (t.includes('hike') || t.includes('walk')) return 'hike';
+  return 'other';
+};
 
 const PERIODS = [
   { days: 7, label: '7j' },
@@ -25,6 +34,11 @@ export function DashboardView() {
   const { data: summary } = useQuery({
     queryKey: ['strava-summary', days],
     queryFn: () => api.get<StravaSummary>(`/strava/summary?days=${days}`),
+    enabled: !!status?.connected,
+  });
+  const { data: recent } = useQuery({
+    queryKey: ['strava-activities', days],
+    queryFn: () => api.get<{ activities: StravaActivity[] }>(`/strava/activities?days=${days}`),
     enabled: !!status?.connected,
   });
 
@@ -105,7 +119,7 @@ export function DashboardView() {
   return (
     <div className="stack">
       {/* ── Forme du jour ───────────────────────────────── */}
-      <div className="card-glass">
+      <div className="card-glass card-hero">
         <div className="section-label">Forme du jour</div>
         <div className="row between">
           <div>
@@ -209,6 +223,36 @@ export function DashboardView() {
                 color="var(--plasma)"
                 fmt={(v) => `${v} km`}
               />
+            </div>
+          )}
+
+          {/* ── Dernières activités ───────────────────────── */}
+          {recent && recent.activities.length > 0 && (
+            <div className="card">
+              <div className="section-label">Dernières activités</div>
+              <div className="stack" style={{ gap: 8 }}>
+                {recent.activities
+                  .filter(a => sport === 'all' || normSport(a.sport_type || a.type || '') === sport)
+                  .slice(0, 6)
+                  .map(a => {
+                    const sp = normSport(a.sport_type || a.type || '');
+                    const m = sportMeta(sp);
+                    return (
+                      <div key={a.id} className="activity-item">
+                        <div className={`activity-icon activity-icon--${m.accent === 'hike' ? 'nutrition' : m.accent === 'swim' ? 'swim' : m.accent === 'bike' ? 'bike' : 'run'}`}>{m.icon}</div>
+                        <div className="activity-info">
+                          <div className="activity-title">{a.name}</div>
+                          <div className="activity-sub">
+                            {new Date(a.start_date_local).toLocaleDateString('fr', { day: 'numeric', month: 'short' })}
+                            {a.distance ? ` · ${fmtKm(a.distance)} km` : ''}
+                            {a.total_elevation_gain ? ` · ${fmtElev(a.total_elevation_gain)} D+` : ''}
+                          </div>
+                        </div>
+                        <span className="activity-stat">{fmtH(a.moving_time)}</span>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           )}
         </>

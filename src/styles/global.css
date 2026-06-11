@@ -5,8 +5,9 @@
 /* ── Fond ambiant animé (aurora plasma) ───────────────────────────── */
 body {
   background:
-    radial-gradient(1200px 800px at 50% -10%, rgba(123, 191, 234, 0.10), transparent 60%),
-    linear-gradient(180deg, #0A1020 0%, #070B14 55%, #05080F 100%);
+    radial-gradient(1000px 700px at 15% 0%, rgba(123, 191, 234, 0.18), transparent 55%),
+    radial-gradient(900px 700px at 85% 100%, rgba(122, 110, 234, 0.16), transparent 55%),
+    linear-gradient(175deg, #0E1730 0%, #0A1124 45%, #070C18 100%);
   min-height: 100dvh;
 }
 
@@ -17,37 +18,47 @@ body {
   overflow: hidden;
   pointer-events: none;
 }
-.aurora::before,
-.aurora::after {
-  content: '';
+.aurora span {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.45;
+  filter: blur(70px);
   will-change: transform;
 }
-.aurora::before {
-  width: 520px; height: 520px;
-  top: -120px; left: -80px;
-  background: radial-gradient(circle, rgba(123, 191, 234, 0.55), transparent 70%);
-  animation: drift1 22s ease-in-out infinite alternate;
-}
-.aurora::after {
+.aurora .a1 {
   width: 460px; height: 460px;
-  bottom: -100px; right: -60px;
-  background: radial-gradient(circle, rgba(122, 110, 234, 0.40), transparent 70%);
-  animation: drift2 28s ease-in-out infinite alternate;
+  top: -100px; left: -60px;
+  background: radial-gradient(circle, rgba(123, 191, 234, 0.85), transparent 68%);
+  opacity: 0.55;
+  animation: drift1 20s ease-in-out infinite alternate;
+}
+.aurora .a2 {
+  width: 420px; height: 420px;
+  bottom: -80px; right: -50px;
+  background: radial-gradient(circle, rgba(138, 120, 245, 0.75), transparent 68%);
+  opacity: 0.5;
+  animation: drift2 26s ease-in-out infinite alternate;
+}
+.aurora .a3 {
+  width: 360px; height: 360px;
+  top: 40%; left: 55%;
+  background: radial-gradient(circle, rgba(96, 210, 200, 0.45), transparent 70%);
+  opacity: 0.4;
+  animation: drift3 32s ease-in-out infinite alternate;
 }
 @keyframes drift1 {
   0%   { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(120px, 80px) scale(1.15); }
+  100% { transform: translate(110px, 90px) scale(1.2); }
 }
 @keyframes drift2 {
   0%   { transform: translate(0, 0) scale(1.1); }
-  100% { transform: translate(-100px, -60px) scale(1); }
+  100% { transform: translate(-90px, -70px) scale(1); }
+}
+@keyframes drift3 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-120px, 60px) scale(1.25); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .aurora::before, .aurora::after { animation: none; }
+  .aurora span { animation: none; }
 }
 
 .app {
@@ -110,6 +121,49 @@ body {
 
 /* Login */
 .login-card { width: min(380px, calc(100% - 32px)); }
+
+/* Chat coach — bulles */
+.bubble {
+  max-width: 88%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.bubble--coach {
+  align-self: flex-start;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(18, 28, 48, 0.32));
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-top-left-radius: 5px;
+  color: var(--text-primary);
+}
+.bubble--user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.30), rgba(123, 191, 234, 0.16));
+  border-color: var(--glass-border-strong);
+  border-top-right-radius: 5px;
+  color: var(--glow);
+}
+
+/* Barre de saisie du coach (fixe au-dessus de la nav) */
+.coach-input {
+  position: sticky;
+  bottom: 88px;
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  margin: 4px -4px 0;
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.08), rgba(10, 16, 28, 0.72));
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+.coach-input .input { flex: 1; }
+.coach-input .btn { flex-shrink: 0; padding: 8px 16px; }
 
 /* Grille de saisie sommeil */
 .sleep-grid {

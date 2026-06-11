@@ -232,23 +232,23 @@ body {
 /* ── CARDS ───────────────────────────────────────────────── */
 
 .card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(13, 20, 32, 0.50));
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.025) 45%, rgba(13, 20, 32, 0.34));
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-xl);
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
   padding: var(--space-lg) var(--space-xl);
   transition: border-color var(--transition-base), transform var(--transition-base);
 }
 
 .card-glass {
-  background: linear-gradient(135deg, rgba(123, 191, 234, 0.10), rgba(18, 28, 48, 0.55));
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(123, 191, 234, 0.06) 45%, rgba(18, 28, 48, 0.34));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: var(--radius-xl);
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 0 0 0.5px rgba(123, 191, 234, 0.10);
   padding: var(--space-lg) var(--space-xl);
   position: relative;
   overflow: hidden;
@@ -259,19 +259,25 @@ body {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--glass-border-strong), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
   pointer-events: none;
+}
+
+/* Carte héro avec halo plasma */
+.card-hero {
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    0 0 60px rgba(123, 191, 234, 0.18);
 }
 
 /* ── METRIC CARD ─────────────────────────────────────────── */
 
 .metric-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(13, 20, 32, 0.45));
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.025) 50%, rgba(13, 20, 32, 0.28));
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
   padding: 14px;
   position: relative;
   overflow: hidden;
@@ -558,9 +564,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: linear-gradient(135deg, rgba(123, 191, 234, 0.08), rgba(10, 16, 28, 0.70));
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.10), rgba(10, 16, 28, 0.66));
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-2xl);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -709,12 +715,12 @@ body {
 /* ── STAT TILE (métriques sport, épinglables) ────────────── */
 
 .stat-tile {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(13, 20, 32, 0.45));
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.025) 50%, rgba(13, 20, 32, 0.28));
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
   padding: 14px;
   position: relative;
   overflow: hidden;

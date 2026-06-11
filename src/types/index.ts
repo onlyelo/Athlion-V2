@@ -64,3 +64,15 @@ export interface StravaStatus {
   last_sync: string | null;
   cached: number;
 }
+
+export interface StravaActivity {
+  id: number;
+  name: string;
+  sport_type?: string;
+  type?: string;
+  distance: number;
+  moving_time: number;
+  total_elevation_gain: number;
+  start_date_local: string;
+  average_heartrate?: number;
+}
