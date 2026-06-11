@@ -195,6 +195,8 @@ function GarminCard() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState(false);
+  const [mfaSession, setMfaSession] = useState<string | null>(null);
+  const [code, setCode] = useState('');
 
   const { data } = useQuery({
     queryKey: ['garmin-status'],
@@ -210,11 +212,27 @@ function GarminCard() {
   async function connect() {
     setBusy(true); setMsg(null); setErr(false);
     try {
-      const r = await api.post<{ imported: number }>('/garmin/connect', { email, password });
+      const r = await api.post<{ connected?: boolean; imported?: number; mfa_required?: boolean; session_id?: string }>('/garmin/connect', { email, password });
+      if (r.mfa_required && r.session_id) {
+        setMfaSession(r.session_id);
+        setMsg('Garmin t’a envoyé un code de vérification — saisis-le ci-dessous.');
+        return;
+      }
       setPassword('');
       setMsg(`Connecté — ${r.imported} nuits importées.`);
       refetchSleep();
     } catch (e) { setErr(true); setMsg(e instanceof Error ? e.message : 'Échec de connexion.'); }
+    finally { setBusy(false); }
+  }
+
+  async function submitMfa() {
+    setBusy(true); setErr(false);
+    try {
+      const r = await api.post<{ imported: number }>('/garmin/mfa', { session_id: mfaSession, code });
+      setMfaSession(null); setCode(''); setPassword('');
+      setMsg(`Connecté — ${r.imported} nuits importées.`);
+      refetchSleep();
+    } catch (e) { setErr(true); setMsg(e instanceof Error ? e.message : 'Code invalide.'); }
     finally { setBusy(false); }
   }
   async function sync() {
@@ -245,6 +263,15 @@ function GarminCard() {
             <button className="btn btn--danger btn--sm" onClick={disconnect}>Déconnecter</button>
           </div>
         </div>
+      ) : mfaSession ? (
+        <div className="stack" style={{ gap: 8 }}>
+          <span className="body-sm">🔐 Double authentification — entre le code reçu (SMS, email ou appli).</span>
+          <input className="input" inputMode="numeric" placeholder="Code de vérification" value={code}
+            onChange={e => setCode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submitMfa(); }} autoFocus />
+          {msg && <span className={`body-sm ${err ? 'text-danger' : 'text-plasma'}`}>{msg}</span>}
+          <button className="btn btn--primary full" onClick={submitMfa} disabled={busy || !code}>{busy ? <span className="spin" /> : 'Valider le code'}</button>
+          <button className="btn btn--ghost btn--sm" onClick={() => { setMfaSession(null); setCode(''); setMsg(null); }}>Annuler</button>
+        </div>
       ) : (
         <div className="stack" style={{ gap: 8 }}>
           <span className="body-sm">Importe ton sommeil réel (durée, phases, FC repos) depuis ton compte Garmin Connect.</span>
@@ -252,7 +279,7 @@ function GarminCard() {
           <input className="input" type="password" placeholder="Mot de passe Garmin" value={password} onChange={e => setPassword(e.target.value)} />
           {msg && <span className={`body-sm ${err ? 'text-danger' : 'text-plasma'}`}>{msg}</span>}
           <button className="btn btn--glass full" onClick={connect} disabled={busy || !email || !password}>{busy ? <span className="spin" /> : '⌚ Connecter Garmin'}</button>
-          <span className="body-sm" style={{ color: 'var(--text-muted)' }}>🔒 Tes identifiants servent uniquement à obtenir un jeton sécurisé ; le mot de passe n'est jamais conservé.</span>
+          <span className="body-sm" style={{ color: 'var(--text-muted)' }}>🔒 Tes identifiants servent uniquement à obtenir un jeton sécurisé ; le mot de passe n'est jamais conservé. La double authentification est gérée.</span>
         </div>
       )}
     </div>
