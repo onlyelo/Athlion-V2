@@ -204,9 +204,12 @@ body {
 }
 
 .surface-glass {
-  background: var(--glass-surface);
-  border: 0.5px solid var(--glass-border);
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.07), rgba(18, 28, 48, 0.55));
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius-xl);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   position: relative;
   overflow: hidden;
 }
@@ -229,16 +232,23 @@ body {
 /* ── CARDS ───────────────────────────────────────────────── */
 
 .card {
-  background: var(--deep);
-  border: 0.5px solid var(--glass-border);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(13, 20, 32, 0.50));
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-xl);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   padding: var(--space-lg) var(--space-xl);
+  transition: border-color var(--transition-base), transform var(--transition-base);
 }
 
 .card-glass {
-  background: var(--glass-surface);
-  border: 0.5px solid var(--glass-border);
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.10), rgba(18, 28, 48, 0.55));
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-xl);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   padding: var(--space-lg) var(--space-xl);
   position: relative;
   overflow: hidden;
@@ -256,12 +266,21 @@ body {
 /* ── METRIC CARD ─────────────────────────────────────────── */
 
 .metric-card {
-  background: var(--deep);
-  border: 0.5px solid var(--glass-border);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(13, 20, 32, 0.45));
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   padding: 14px;
   position: relative;
   overflow: hidden;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--glass-border-hover);
 }
 
 .metric-card::after {
@@ -539,9 +558,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: var(--abyss);
-  border: 0.5px solid var(--glass-border);
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.08), rgba(10, 16, 28, 0.70));
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-2xl);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   padding: 6px 8px;
 }
 
@@ -625,3 +647,142 @@ body {
 
 .border-glass        { border: 0.5px solid var(--glass-border); }
 .border-glass-strong { border: 0.5px solid var(--glass-border-strong); }
+
+/* ── SEGMENTED CONTROL (filtres) ─────────────────────────── */
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(10, 16, 28, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.seg-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.seg-btn:hover { color: var(--text-primary); }
+.seg-btn--active {
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.28), rgba(123, 191, 234, 0.14));
+  color: var(--glow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* ── CHIPS (filtres sport) ───────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--glass-border-hover); color: var(--text-primary); }
+.chip--active {
+  color: var(--glow);
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.22), rgba(123, 191, 234, 0.10));
+  border-color: var(--glass-border-strong);
+}
+
+/* ── STAT TILE (métriques sport, épinglables) ────────────── */
+
+.stat-tile {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(13, 20, 32, 0.45));
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.stat-tile:hover { transform: translateY(-2px); border-color: var(--glass-border-hover); }
+.stat-tile__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.stat-tile__label {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-secondary);
+}
+.stat-tile__value {
+  font-family: var(--font-display); font-size: 24px; font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1; color: var(--glow);
+}
+.stat-tile__unit { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 3px; }
+.stat-tile__sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); margin-top: 5px; }
+
+/* bouton épingle */
+.pin-btn {
+  background: transparent; border: none; cursor: pointer; padding: 2px;
+  font-size: 13px; color: var(--text-muted); line-height: 1;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+.pin-btn:hover { transform: scale(1.15); color: var(--text-secondary); }
+.pin-btn--on { color: var(--warning); }
+
+/* Accents par sport (barre inférieure) */
+.accent-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; }
+.accent--run    { background: var(--plasma); }
+.accent--bike   { background: var(--warning); }
+.accent--swim   { background: var(--ice); }
+.accent--hike   { background: var(--success); }
+.accent--other  { background: var(--text-muted); }
+
+/* ── CHART (SVG) ─────────────────────────────────────────── */
+
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(10, 16, 28, 0.92);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  transform: translate(-50%, -120%);
+  z-index: 5;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* ── BUTTON glass ────────────────────────────────────────── */
+
+.btn--glass {
+  background: linear-gradient(135deg, rgba(123, 191, 234, 0.18), rgba(123, 191, 234, 0.06));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--glow);
+  border: 1px solid var(--glass-border-strong);
+}
+.btn--glass:hover { border-color: var(--glass-border-hover); }
+
+/* Spinner inline */
+.spin {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.25); border-top-color: var(--plasma);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

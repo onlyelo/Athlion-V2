@@ -2,6 +2,54 @@
 
 #root { min-height: 100dvh; }
 
+/* ── Fond ambiant animé (aurora plasma) ───────────────────────────── */
+body {
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(123, 191, 234, 0.10), transparent 60%),
+    linear-gradient(180deg, #0A1020 0%, #070B14 55%, #05080F 100%);
+  min-height: 100dvh;
+}
+
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.45;
+  will-change: transform;
+}
+.aurora::before {
+  width: 520px; height: 520px;
+  top: -120px; left: -80px;
+  background: radial-gradient(circle, rgba(123, 191, 234, 0.55), transparent 70%);
+  animation: drift1 22s ease-in-out infinite alternate;
+}
+.aurora::after {
+  width: 460px; height: 460px;
+  bottom: -100px; right: -60px;
+  background: radial-gradient(circle, rgba(122, 110, 234, 0.40), transparent 70%);
+  animation: drift2 28s ease-in-out infinite alternate;
+}
+@keyframes drift1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(120px, 80px) scale(1.15); }
+}
+@keyframes drift2 {
+  0%   { transform: translate(0, 0) scale(1.1); }
+  100% { transform: translate(-100px, -60px) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before, .aurora::after { animation: none; }
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;
@@ -9,19 +57,20 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  background: var(--void);
+  z-index: 1;
+  background: transparent;
 }
 
 .app__main {
   flex: 1;
-  padding: var(--space-xl) var(--space-lg) 96px;  /* marge basse pour la nav */
+  padding: var(--space-xl) var(--space-lg) 104px;  /* marge basse pour la nav */
 }
 
 .app__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-lg) var(--space-lg) 0;
+  padding: var(--space-lg) var(--space-lg) var(--space-sm);
 }
 
 .app__brand {
@@ -41,21 +90,23 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 12px;
+  bottom: 14px;
   width: min(456px, calc(100% - 24px));
-  z-index: 20;
+  z-index: 30;
 }
 
 /* Grilles utilitaires */
 .grid { display: grid; gap: var(--space-md); }
 .grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
 .stack { display: flex; flex-direction: column; gap: var(--space-md); }
 .row { display: flex; align-items: center; gap: var(--space-md); }
 .between { justify-content: space-between; }
+.wrap { flex-wrap: wrap; }
 .mt-lg { margin-top: var(--space-lg); }
 .mt-xl { margin-top: var(--space-xl); }
 .full { width: 100%; }
-.center { display: grid; place-items: center; min-height: 100dvh; }
+.center { display: grid; place-items: center; min-height: 100dvh; position: relative; z-index: 1; }
 
 /* Login */
 .login-card { width: min(380px, calc(100% - 32px)); }
@@ -66,6 +117,20 @@
 /* Mini barres d'historique */
 .spark { display: flex; align-items: flex-end; gap: 3px; height: 56px; }
 .spark span { flex: 1; background: var(--plasma); border-radius: 2px 2px 0 0; opacity: 0.8; min-height: 2px; }
+
+/* Apparition douce des cartes */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.app__main > .stack > * { animation: riseIn 0.4s ease both; }
+.app__main > .stack > *:nth-child(2) { animation-delay: 0.04s; }
+.app__main > .stack > *:nth-child(3) { animation-delay: 0.08s; }
+.app__main > .stack > *:nth-child(4) { animation-delay: 0.12s; }
+.app__main > .stack > *:nth-child(5) { animation-delay: 0.16s; }
+@media (prefers-reduced-motion: reduce) {
+  .app__main > .stack > * { animation: none; }
+}
 
 /* Desktop : on élargit et on garde la nav centrée */
 @media (min-width: 768px) {

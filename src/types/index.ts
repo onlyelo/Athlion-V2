@@ -40,3 +40,27 @@ export interface SleepNight {
   wake_time: string | null;
   bedtime: string | null;
 }
+
+export interface SportStat {
+  sport: string;
+  distance: number;   // m
+  elevation: number;  // m (D+)
+  time: number;       // s
+  sessions: number;
+  avgHr: number | null;
+  avgSpeed: number | null; // m/s
+}
+
+export interface StravaSummary {
+  days: number;
+  totals: { distance: number; elevation: number; time: number; sessions: number; avgHr: number | null };
+  bySport: SportStat[];
+  weekly: Array<{ week: string; distance: number; time: number; elevation: number }>;
+}
+
+export interface StravaStatus {
+  connected: boolean;
+  athlete_id: number | null;
+  last_sync: string | null;
+  cached: number;
+}
