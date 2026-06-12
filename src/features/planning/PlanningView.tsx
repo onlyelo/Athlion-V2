@@ -16,6 +16,27 @@ interface GenResult { week: { label: string; weeklyTssTarget: number; intensity:
 const HORIZON = { short: 'Court terme', mid: 'Moyen terme', long: 'Long terme' };
 const STATUS_BADGE: Record<string, string> = { planned: 'badge--blue', completed: 'badge--green', skipped: 'badge--red', modified: 'badge--amber' };
 
+const DAYS = [['L', 0], ['M', 1], ['M', 2], ['J', 3], ['V', 4], ['S', 5], ['D', 6]] as const;
+const SPORTS = [
+  { key: 'swim', icon: '🏊', label: 'Nage' },
+  { key: 'bike', icon: '🚴', label: 'Vélo' },
+  { key: 'run', icon: '🏃', label: 'Course' },
+  { key: 'strength', icon: '💪', label: 'Renfo' },
+];
+const SESSION_TYPES = ['Endurance', 'Seuil', 'VO2max', 'Technique', 'Sortie longue', 'Fractionné'];
+const INTENSITY: Array<{ key: 'easy' | 'normal' | 'hard'; label: string }> = [
+  { key: 'easy', label: 'Facile' }, { key: 'normal', label: 'Normal' }, { key: 'hard', label: 'Intense' },
+];
+
+interface Constraints {
+  sessionsCount: number | null;
+  days: number[];
+  focusSports: string[];
+  intensity: 'easy' | 'normal' | 'hard';
+  sessionTypes: string[];
+  notes: string;
+}
+
 export function PlanningView() {
   const qc = useQueryClient();
   const [generating, setGenerating] = useState(false);
@@ -23,15 +44,27 @@ export function PlanningView() {
   const [showGoal, setShowGoal] = useState(false);
   const [goalForm, setGoalForm] = useState({ title: '', horizon: 'mid' as Goal['horizon'], target_date: '' });
   const [reconcileId, setReconcileId] = useState<string | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
+  const [cst, setCst] = useState<Constraints>({ sessionsCount: null, days: [], focusSports: [], intensity: 'normal', sessionTypes: [], notes: '' });
 
   const { data: sessions } = useQuery({ queryKey: ['sessions'], queryFn: () => api.get<Session[]>('/training/sessions?from=' + weekStart() + '&to=' + weekEnd()) });
   const { data: goals } = useQuery({ queryKey: ['goals'], queryFn: () => api.get<Goal[]>('/training/goals') });
   const { data: levels } = useQuery({ queryKey: ['levels'], queryFn: () => api.get<Level[]>('/training/levels') });
 
+  const toggle = <T,>(arr: T[], v: T): T[] => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+
   async function generate() {
     setGenerating(true);
     try {
-      const r = await api.post<GenResult>('/training/generate');
+      const constraints = {
+        ...(cst.sessionsCount ? { sessionsCount: cst.sessionsCount } : {}),
+        days: cst.days,
+        focusSports: cst.focusSports,
+        intensity: cst.intensity,
+        sessionTypes: cst.sessionTypes,
+        ...(cst.notes.trim() ? { notes: cst.notes.trim() } : {}),
+      };
+      const r = await api.post<GenResult>('/training/generate', { constraints });
       setGenInfo(r.week);
       await qc.invalidateQueries({ queryKey: ['sessions'] });
     } catch {
@@ -55,10 +88,80 @@ export function PlanningView() {
     <div className="stack">
       <div className="row between">
         <h1 className="heading-1">Planning</h1>
-        <button className="btn btn--primary btn--sm" onClick={generate} disabled={generating}>
-          {generating ? <span className="spin" /> : '✦ Générer ma semaine'}
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          <button className={`btn btn--sm ${showCustom ? 'btn--secondary' : 'btn--ghost'}`} onClick={() => setShowCustom(s => !s)}>⚙︎ Contraintes</button>
+          <button className="btn btn--primary btn--sm" onClick={generate} disabled={generating}>
+            {generating ? <span className="spin" /> : '✦ Générer'}
+          </button>
+        </div>
       </div>
+
+      {/* Contraintes de génération IA */}
+      {showCustom && (
+        <div className="card">
+          <div className="section-label">Contraintes de la semaine</div>
+          <div className="stack" style={{ gap: 14 }}>
+            {/* Nombre de séances */}
+            <div className="row between">
+              <span className="body-sm">Nombre de séances</span>
+              <div className="row" style={{ gap: 6 }}>
+                <button className="step-btn" onClick={() => setCst(c => ({ ...c, sessionsCount: Math.max(2, (c.sessionsCount ?? 5) - 1) }))}>−</button>
+                <span className="mono" style={{ minWidth: 48, textAlign: 'center' }}>{cst.sessionsCount ?? 'auto'}</span>
+                <button className="step-btn" onClick={() => setCst(c => ({ ...c, sessionsCount: Math.min(12, (c.sessionsCount ?? 5) + 1) }))}>+</button>
+                {cst.sessionsCount != null && <button className="btn btn--ghost btn--sm" onClick={() => setCst(c => ({ ...c, sessionsCount: null }))}>auto</button>}
+              </div>
+            </div>
+
+            {/* Jours autorisés */}
+            <div>
+              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Jours d'entraînement {cst.days.length === 0 && <span className="text-muted">· tous</span>}</span>
+              <div className="row" style={{ gap: 6 }}>
+                {DAYS.map(([lbl, idx]) => (
+                  <button key={idx} className={`day-chip${cst.days.includes(idx) ? ' day-chip--active' : ''}`}
+                    onClick={() => setCst(c => ({ ...c, days: toggle(c.days, idx) }))}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Disciplines */}
+            <div>
+              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Disciplines {cst.focusSports.length === 0 && <span className="text-muted">· toutes</span>}</span>
+              <div className="row wrap" style={{ gap: 6 }}>
+                {SPORTS.map(s => (
+                  <button key={s.key} className={`chip${cst.focusSports.includes(s.key) ? ' chip--active' : ''}`}
+                    onClick={() => setCst(c => ({ ...c, focusSports: toggle(c.focusSports, s.key) }))}>{s.icon} {s.label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Intensité */}
+            <div>
+              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Intensité globale</span>
+              <div className="segmented">
+                {INTENSITY.map(it => (
+                  <button key={it.key} className={`seg-btn${cst.intensity === it.key ? ' seg-btn--active' : ''}`}
+                    onClick={() => setCst(c => ({ ...c, intensity: it.key }))}>{it.label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Types de séances */}
+            <div>
+              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Types de séances {cst.sessionTypes.length === 0 && <span className="text-muted">· au choix</span>}</span>
+              <div className="row wrap" style={{ gap: 6 }}>
+                {SESSION_TYPES.map(t => (
+                  <button key={t} className={`chip${cst.sessionTypes.includes(t) ? ' chip--active' : ''}`}
+                    onClick={() => setCst(c => ({ ...c, sessionTypes: toggle(c.sessionTypes, t) }))}>{t}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Note libre */}
+            <input className="input" placeholder="Demande libre (ex : pas de vélo en intérieur, séance club le mardi)…"
+              value={cst.notes} onChange={e => setCst(c => ({ ...c, notes: e.target.value }))} maxLength={300} />
+          </div>
+        </div>
+      )}
 
       {/* Phase de périodisation (après génération) */}
       {genInfo && (

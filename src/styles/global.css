@@ -222,6 +222,25 @@ body {
 .phase-legend__item .mono { margin-left: auto; font-size: 12px; }
 .phase-legend__pct { font-size: 11px; color: var(--text-muted); min-width: 30px; text-align: right; }
 
+/* Steppers & chips jour (contraintes planning) */
+.step-btn {
+  width: 30px; height: 30px; border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border); background: rgba(255,255,255,0.04);
+  color: var(--text-primary); font-size: 16px; line-height: 1; cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+.step-btn:hover { border-color: var(--plasma); }
+.day-chip {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+  color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.day-chip:hover { border-color: var(--glass-border-hover); color: var(--text-primary); }
+.day-chip--active {
+  color: var(--void); background: var(--plasma); border-color: var(--plasma);
+}
+
 /* Sélecteur heure / minute */
 .time-stepper { display: flex; align-items: center; gap: 8px; }
 .time-stepper__colon { font-family: var(--font-display); font-size: 22px; color: var(--text-secondary); }
