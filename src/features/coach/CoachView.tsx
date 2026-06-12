@@ -30,8 +30,13 @@ export function CoachView() {
     // Optimiste : on affiche le message tout de suite
     qc.setQueryData<CoachData>(['coach'], (d) => d ? { ...d, messages: [...d.messages, { role: 'user', content: message, created_at: new Date().toISOString() }] } : d);
     try {
-      await api.post('/coach/chat', { message });
+      const r = await api.post<{ reply: string; planning_changed?: boolean }>('/coach/chat', { message });
       await qc.invalidateQueries({ queryKey: ['coach'] });
+      // Si le coach a modifié le programme, on rafraîchit le planning et l'état athlète.
+      if (r?.planning_changed) {
+        await qc.invalidateQueries({ queryKey: ['sessions'] });
+        await qc.invalidateQueries({ queryKey: ['dashboard'] });
+      }
     } finally { setBusy(false); }
   }
 
@@ -81,7 +86,7 @@ export function CoachView() {
       <div className="stack" style={{ gap: 10 }}>
         {messages.length === 0 && (
           <div className="card" style={{ textAlign: 'center', padding: 24 }}>
-            <span className="body-sm">Pose une question à ton coach, ou lance une analyse.<br />Il connaît ta charge, ton sommeil et tes séances.</span>
+            <span className="body-sm">Pose une question à ton coach, ou lance une analyse.<br />Il connaît ta charge, ton sommeil et tes séances — et peut <b className="text-ice">ajuster ton programme</b> (ex : « décale ma sortie longue à dimanche », « allège mardi, je suis fatigué »).</span>
           </div>
         )}
         {messages.map((m, i) => (
