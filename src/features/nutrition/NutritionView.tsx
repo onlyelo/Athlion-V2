@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { Icon } from '../../components/Icon';
+import { Badge } from '../../components/ui';
 
 interface Target { date: string; dayTss: number; kcal: number; protein_g: number; carb_g: number; fat_g: number; }
 interface MenuDay { date: string; jour: string; petit_dej?: string; dejeuner?: string; diner?: string; collation?: string; }
@@ -58,6 +60,10 @@ export function NutritionView() {
   const courses = shopping.items;
   const menuByDate = Object.fromEntries(menu.map(m => [m.date, m]));
   const weekKcal = targets.reduce((s, t) => s + t.kcal, 0);
+  const n = targets.length || 1;
+  const avgP = Math.round(targets.reduce((s, t) => s + t.protein_g, 0) / n);
+  const avgG = Math.round(targets.reduce((s, t) => s + t.carb_g, 0) / n);
+  const avgL = Math.round(targets.reduce((s, t) => s + t.fat_g, 0) / n);
   const overBudget = shopping.total_eur != null && shopping.budget_max_eur != null && shopping.total_eur > shopping.budget_max_eur;
 
   return (
@@ -72,11 +78,21 @@ export function NutritionView() {
       <p className="body-sm" style={{ marginTop: -6 }}>Semaine prochaine · besoins calés sur ta charge d'entraînement. Idéal à configurer jeudi/vendredi.</p>
 
       {/* Besoins de la semaine */}
-      <div className="card-glass">
-        <div className="section-label">Besoins — semaine</div>
-        <div className="row between">
-          <div><span className="gauge text-plasma">{Math.round(weekKcal / 7)}</span><span className="body-sm" style={{ marginLeft: 6 }}>kcal/j moy.</span></div>
-          <span className="body-sm">{Math.round(weekKcal / 1000)}k kcal / semaine</span>
+      <div className="card-hero">
+        <div className="section-label">Besoins · semaine</div>
+        <div className="row" style={{ gap: 16, alignItems: 'stretch' }}>
+          <div>
+            <div className="metric-lg">{Math.round(weekKcal / 7).toLocaleString('fr')}</div>
+            <div className="body-sm" style={{ marginTop: 2 }}>kcal / jour moy.</div>
+          </div>
+          <div style={{ borderLeft: '1px solid var(--border-light)', paddingLeft: 16, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+            {[{ l: 'Protéines', v: avgP }, { l: 'Glucides', v: avgG }, { l: 'Lipides', v: avgL }].map(m => (
+              <div key={m.l} className="row" style={{ gap: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', width: 66 }}>{m.l}</span>
+                <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>{m.v} g</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -131,23 +147,38 @@ export function NutritionView() {
           const md = menuByDate[t.date];
           const isOpen = openDay === t.date;
           return (
-            <div key={t.date} className="card" style={{ padding: '12px 14px' }}>
-              <div className="row between" style={{ cursor: md ? 'pointer' : 'default' }} onClick={() => md && setOpenDay(o => o === t.date ? null : t.date)}>
-                <div>
-                  <div className="activity-title" style={{ textTransform: 'capitalize' }}>{shortDay(t.date)}</div>
-                  <div className="activity-sub">{t.dayTss ? `charge ${t.dayTss} TSS` : 'repos'} · {t.carb_g}g glucides</div>
+            <div key={t.date} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <button
+                onClick={() => md && setOpenDay(o => o === t.date ? null : t.date)}
+                style={{ width: '100%', padding: '12px 16px', background: 'none', border: 'none', cursor: md ? 'pointer' : 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-primary)' }}
+              >
+                <div className="row" style={{ gap: 10 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, textTransform: 'capitalize' }}>{shortDay(t.date)}</span>
+                  {t.dayTss > 0 && <Badge variant="blue">{t.dayTss} TSS</Badge>}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span className="mono">{t.kcal} kcal</span>
-                  <div className="activity-sub">{t.protein_g}P · {t.carb_g}G · {t.fat_g}L</div>
+                <div className="row" style={{ gap: 8 }}>
+                  <span className="mono" style={{ fontSize: 14, fontWeight: 700 }}>{t.kcal.toLocaleString('fr')}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>kcal</span>
+                  {md && <Icon name={isOpen ? 'chevU' : 'chevD'} size={14} color="var(--text-tertiary)" />}
                 </div>
-              </div>
+              </button>
               {md && isOpen && (
-                <div className="stack" style={{ gap: 6, marginTop: 10, paddingTop: 10, borderTop: '0.5px solid var(--glass-border)' }}>
-                  <Meal label="Petit-déj" v={md.petit_dej} />
-                  <Meal label="Déjeuner" v={md.dejeuner} />
-                  <Meal label="Dîner" v={md.diner} />
-                  <Meal label="Collation" v={md.collation} />
+                <div style={{ padding: '0 16px 14px', borderTop: '1px solid var(--border-light)' }}>
+                  <div className="row" style={{ gap: 12, padding: '12px 0 4px' }}>
+                    {[{ l: 'P', v: t.protein_g, c: 'var(--pulse)' }, { l: 'G', v: t.carb_g, c: 'var(--energy)' }, { l: 'L', v: t.fat_g, c: 'var(--effort)' }].map(mm => (
+                      <div key={mm.l} style={{ flex: 1, textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: '8px 4px' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: mm.c, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{mm.l}</div>
+                        <div className="mono" style={{ fontSize: 16, fontWeight: 700 }}>{mm.v}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>g</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+                    <Meal label="Petit-déj" v={md.petit_dej} />
+                    <Meal label="Déjeuner" v={md.dejeuner} />
+                    <Meal label="Dîner" v={md.diner} />
+                    <Meal label="Collation" v={md.collation} />
+                  </div>
                 </div>
               )}
             </div>

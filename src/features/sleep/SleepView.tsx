@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { BarChart } from '../../components/Charts';
+import { Badge } from '../../components/ui';
 
 interface SleepPhases { deep_min?: number; rem_min?: number; light_min?: number; awake_min?: number; }
 interface Wellness {
@@ -124,7 +125,7 @@ export function SleepView() {
             if (w?.steps != null) m.push({ label: 'Pas', value: w.steps.toLocaleString('fr') });
             if (w?.intensity_min != null) m.push({ label: 'Min. intensité', value: `${w.intensity_min}` });
             return m.length ? (
-              <div className="row wrap" style={{ gap: 18, marginTop: 12 }}>
+              <div className="grid grid-3" style={{ marginTop: 14 }}>
                 {m.map(x => <Metric key={x.label} label={x.label} value={x.value} />)}
               </div>
             ) : null;
@@ -225,18 +226,22 @@ function EnergyCard({ curve }: { curve: NonNullable<SleepData['energy_curve']> }
   const melStart = Math.max(H0, Math.min(H1, mel.start < H0 ? mel.start + 24 : mel.start));
   const melEnd = Math.max(H0, Math.min(H1, mel.end < melStart ? H1 : mel.end));
 
-  const energyLabel = energyNow == null ? '—' : energyNow >= 70 ? 'haute' : energyNow >= 45 ? 'moyenne' : 'basse';
+  const energyLabel = energyNow == null ? 'Hors fenêtre' : energyNow >= 70 ? 'Bonne énergie' : energyNow >= 45 ? 'Énergie modérée' : 'Creux circadien';
+  const energyVariant: 'green' | 'blue' | 'orange' = energyNow == null ? 'blue' : energyNow >= 70 ? 'green' : energyNow >= 45 ? 'blue' : 'orange';
 
   return (
-    <div className="card-glass">
-      <div className="row between" style={{ alignItems: 'flex-end', marginBottom: 8 }}>
+    <div className="card-hero">
+      <div className="row between" style={{ alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <div className="section-label" style={{ marginBottom: 2 }}>Énergie circadienne</div>
-          <span className="body-sm">Maintenant · {hour12(nowDec)}</span>
+          <div className="label" style={{ marginBottom: 6 }}>Énergie maintenant · {hour12(nowDec)}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            <span className="metric-hero" style={{ fontSize: 44 }}>{energyNow ?? '—'}</span>
+            {energyNow != null && <span style={{ fontSize: 20, color: 'var(--text-secondary)', fontWeight: 600 }}>%</span>}
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="gauge text-plasma" style={{ fontSize: 34 }}>{energyNow ?? '—'}{energyNow != null ? <span style={{ fontSize: 16 }}>%</span> : null}</div>
-          <span className="body-sm">énergie {energyLabel}</span>
+        <div style={{ textAlign: 'right', paddingTop: 4 }}>
+          <Badge variant={energyVariant}>{energyLabel}</Badge>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 6 }}>creux vers {curve.dipHour}h</div>
         </div>
       </div>
 
@@ -322,7 +327,7 @@ function DebtCard({ debtMin, debtH, need, nights }: { debtMin: number; debtH: nu
           <span className="body-sm" style={{ marginLeft: 6 }}>h de dette{capped ? ' (plafond)' : ''}</span>
         </div>
         <div className="debt-bar" title={`${hhmm(debtMin)} de déficit cumulé`}>
-          <div className="debt-bar__fill" style={{ width: `${Math.min(100, (debtMin / (40 * 60)) * 100)}%` }} />
+          <div className={`debt-bar__fill${debtH > 3 ? ' debt-bar__fill--high' : debtH > 1 ? ' debt-bar__fill--warn' : ''}`} style={{ width: `${Math.min(100, (debtMin / (40 * 60)) * 100)}%` }} />
         </div>
       </div>
 
@@ -381,10 +386,14 @@ function PhaseBar({ phases, total }: { phases: SleepPhases; total: number }) {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  // value = "58 ms" → on isole le nombre de l'unité
+  const [num, ...rest] = value.split(' ');
+  const unit = rest.join(' ');
   return (
-    <div>
-      <div className="mono" style={{ fontSize: 18 }}>{value}</div>
-      <span className="label">{label}</span>
+    <div className="mini-metric">
+      <div className="mini-metric__label">{label}</div>
+      <div className="mini-metric__value">{num}</div>
+      {unit && <div className="mini-metric__unit">{unit}</div>}
     </div>
   );
 }

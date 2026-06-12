@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { sportMeta } from '../../lib/sport';
 import { BarChart } from '../../components/Charts';
+import { Icon } from '../../components/Icon';
+import { Badge } from '../../components/ui';
 
 interface Session {
   id: string; date: string; sport: string | null; name: string | null; status: string;
@@ -112,7 +114,9 @@ export function PlanningView() {
       <div className="row between">
         <h1 className="heading-1">Planning</h1>
         <div className="row" style={{ gap: 8 }}>
-          <button className={`btn btn--sm ${showCustom ? 'btn--secondary' : 'btn--ghost'}`} onClick={() => setShowCustom(s => !s)}>⚙︎ Contraintes</button>
+          <button className="icon-btn" style={showCustom ? { borderColor: 'var(--pulse)', color: 'var(--pulse)' } : undefined} onClick={() => setShowCustom(s => !s)} title="Contraintes" aria-label="Contraintes">
+            <Icon name="settings" size={16} />
+          </button>
           <button className="btn btn--primary btn--sm" onClick={generate} disabled={generating}>
             {generating ? <span className="spin" /> : '✦ Générer'}
           </button>
@@ -223,12 +227,12 @@ export function PlanningView() {
 
       {/* Phase de périodisation (après génération) */}
       {genInfo && (
-        <div className="card-glass">
-          <div className="section-label">Phase — {genInfo.label}{genInfo.deload ? ' · décharge' : ''}</div>
-          <div className="row between">
-            <span className="body-sm">{genInfo.intensity}</span>
-            <span className="mono">~{genInfo.weeklyTssTarget} TSS</span>
+        <div className="ai-card row between">
+          <div>
+            <div className="ai-card__label" style={{ marginBottom: 2 }}>Phase · {genInfo.label}{genInfo.deload ? ' · décharge' : ''}</div>
+            <div className="body-sm">{genInfo.intensity}</div>
           </div>
+          <span className="metric-md" style={{ color: 'var(--pulse)' }}>{genInfo.weeklyTssTarget}<span style={{ fontSize: 11, fontWeight: 600 }}> TSS</span></span>
         </div>
       )}
 
@@ -307,27 +311,26 @@ export function PlanningView() {
       )}
 
       {/* Calendrier jour par jour */}
-      <div className="stack" style={{ gap: 8 }}>
+      <div className="stack" style={{ gap: 10 }}>
         {weekDays.map(d => {
           const ses = byDate.get(d) ?? [];
           const dayTss = ses.reduce((s, x) => s + (x.tss || 0), 0);
+          const today = d === todayIso;
           return (
-            <div key={d} className={`day-block${d === todayIso ? ' day-block--today' : ''}`}>
+            <div key={d} className={`day-block${today ? ' day-block--today' : ''}`}>
               <div className="day-block__head">
-                <span className="day-block__date">{frDayNum(d)}{d === todayIso ? ' · aujourd\'hui' : ''}</span>
-                {dayTss > 0 && <span className="mono">{Math.round(dayTss)} TSS</span>}
-              </div>
-              {ses.length === 0 ? (
-                <span className="body-sm text-muted">Repos</span>
-              ) : (
-                <div className="stack" style={{ gap: 6 }}>
-                  {ses.map(s => (
-                    <SessionCard key={s.id} s={s} open={reconcileId === s.id}
-                      onToggle={() => setReconcileId(id => id === s.id ? null : s.id)}
-                      onDone={() => { setReconcileId(null); qc.invalidateQueries({ queryKey: ['sessions'] }); qc.invalidateQueries({ queryKey: ['levels'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); }} />
-                  ))}
+                <span className="day-block__date">{frDayNum(d)}</span>
+                <div className="row" style={{ gap: 8 }}>
+                  {dayTss > 0 && <span className="mono">{Math.round(dayTss)} TSS</span>}
+                  {today && <Badge variant="blue">Auj.</Badge>}
+                  {ses.length === 0 && <span className="body-sm" style={{ color: 'var(--text-tertiary)' }}>Repos 🛌</span>}
                 </div>
-              )}
+              </div>
+              {ses.map(s => (
+                <SessionCard key={s.id} s={s} open={reconcileId === s.id}
+                  onToggle={() => setReconcileId(id => id === s.id ? null : s.id)}
+                  onDone={() => { setReconcileId(null); qc.invalidateQueries({ queryKey: ['sessions'] }); qc.invalidateQueries({ queryKey: ['levels'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); }} />
+              ))}
             </div>
           );
         })}
@@ -382,7 +385,7 @@ function SessionCard({ s, open, onToggle, onDone }: { s: Session; open: boolean;
     : s.status === 'skipped' ? 'sautée' : s.status;
 
   return (
-    <div className="card" style={{ padding: '12px 14px' }}>
+    <div className="session-row">
       <div className="row between">
         <div className="row" style={{ gap: 12 }}>
           <div className={`activity-icon activity-icon--${m.accent === 'hike' ? 'nutrition' : m.accent === 'swim' ? 'swim' : m.accent === 'bike' ? 'bike' : 'run'}`}>{m.icon}</div>

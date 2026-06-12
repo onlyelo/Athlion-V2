@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { Icon } from '../../components/Icon';
+import { Segmented } from '../../components/ui';
 
 interface CoachMsg { role: 'user' | 'coach'; content: string; created_at: string; }
 interface CoachData {
@@ -10,6 +12,8 @@ interface CoachData {
   messages: CoachMsg[];
   insights: Array<{ scope: string; content: string; questions: string[]; created_at: string }>;
 }
+
+const hhmm = (iso: string) => { try { return new Date(iso).toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
 
 export function CoachView() {
   const qc = useQueryClient();
@@ -27,12 +31,10 @@ export function CoachView() {
     if (!message || busy) return;
     setInput('');
     setBusy(true);
-    // Optimiste : on affiche le message tout de suite
     qc.setQueryData<CoachData>(['coach'], (d) => d ? { ...d, messages: [...d.messages, { role: 'user', content: message, created_at: new Date().toISOString() }] } : d);
     try {
       const r = await api.post<{ reply: string; planning_changed?: boolean }>('/coach/chat', { message });
       await qc.invalidateQueries({ queryKey: ['coach'] });
-      // Si le coach a modifié le programme, on rafraîchit le planning et l'état athlète.
       if (r?.planning_changed) {
         await qc.invalidateQueries({ queryKey: ['sessions'] });
         await qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -42,10 +44,8 @@ export function CoachView() {
 
   async function analyze() {
     setAnalyzing(true);
-    try {
-      await api.post('/coach/analyze');
-      await qc.invalidateQueries({ queryKey: ['coach'] });
-    } finally { setAnalyzing(false); }
+    try { await api.post('/coach/analyze'); await qc.invalidateQueries({ queryKey: ['coach'] }); }
+    finally { setAnalyzing(false); }
   }
 
   async function setCadence(cadence: 'day' | '3days') {
@@ -57,45 +57,54 @@ export function CoachView() {
   const messages = data?.messages ?? [];
 
   return (
-    <div className="stack">
+    <div className="stack" style={{ gap: 14 }}>
       <div className="row between">
         <h1 className="heading-1">Coach IA</h1>
-        <div className="segmented">
-          <button className={`seg-btn${data?.cadence === 'day' ? ' seg-btn--active' : ''}`} onClick={() => setCadence('day')}>Quotidien</button>
-          <button className={`seg-btn${data?.cadence === '3days' ? ' seg-btn--active' : ''}`} onClick={() => setCadence('3days')}>Tous les 3j</button>
-        </div>
+        <Segmented
+          options={[{ value: 'day', label: 'Quotidien' }, { value: '3days', label: 'Tous les 3j' }]}
+          value={data?.cadence ?? 'day'}
+          onChange={setCadence}
+        />
       </div>
 
       {/* Analyse récurrente */}
-      <div className="card-glass">
-        <div className="row between">
-          <div>
-            <div className="section-label" style={{ marginBottom: 4 }}>Analyse {data?.cadence === '3days' ? '/ 3 jours' : 'quotidienne'}</div>
-            <span className="body-sm">
-              {data?.last_analysis_at ? `Dernière : ${new Date(data.last_analysis_at).toLocaleDateString('fr')}` : 'Jamais analysée'}
-              {data?.due ? ' · à faire' : ''}
-            </span>
-          </div>
-          <button className={`btn btn--sm ${data?.due ? 'btn--primary' : 'btn--glass'}`} onClick={analyze} disabled={analyzing}>
-            {analyzing ? <span className="spin" /> : '✦ Analyser'}
-          </button>
+      <div className="ai-card row between">
+        <div>
+          <div className="ai-card__label" style={{ marginBottom: 2 }}>Analyse {data?.cadence === '3days' ? '/ 3 jours' : 'quotidienne'}</div>
+          <span className="body-sm">
+            {data?.last_analysis_at ? `Dernière : ${new Date(data.last_analysis_at).toLocaleDateString('fr')}` : 'Jamais analysée'}
+            {data?.due ? ' · à faire' : ''}
+          </span>
         </div>
+        <button className={`btn btn--sm ${data?.due ? 'btn--primary' : 'btn--glass'}`} onClick={analyze} disabled={analyzing}>
+          {analyzing ? <span className="spin" /> : '✦ Analyser'}
+        </button>
       </div>
 
       {/* Conversation */}
-      <div className="stack" style={{ gap: 10 }}>
+      <div className="coach-chat">
         {messages.length === 0 && (
           <div className="card" style={{ textAlign: 'center', padding: 24 }}>
-            <span className="body-sm">Pose une question à ton coach, ou lance une analyse.<br />Il connaît ta charge, ton sommeil et tes séances — et peut <b className="text-ice">ajuster ton programme</b> (ex : « décale ma sortie longue à dimanche », « allège mardi, je suis fatigué »).</span>
+            <span className="body-sm">Pose une question à ton coach, ou lance une analyse.<br />Il connaît ta charge, ton sommeil et tes séances — et peut <b style={{ color: 'var(--pulse)' }}>ajuster ton programme</b> (ex : « décale ma sortie longue à dimanche », « allège mardi, je suis fatigué »).</span>
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={`bubble bubble--${m.role}`}>
-            <Rich text={m.content} />
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          const isCoach = m.role === 'coach';
+          return (
+            <div key={i} className={`chat-row chat-row--${m.role}`}>
+              {isCoach && <div className="chat-avatar">⬡</div>}
+              <div style={{ maxWidth: '80%' }}>
+                <div className={`bubble bubble--${m.role}`}><Rich text={m.content} strongColor={isCoach ? 'var(--pulse)' : '#fff'} /></div>
+                {m.created_at && <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4, textAlign: isCoach ? 'left' : 'right', padding: '0 4px' }}>{hhmm(m.created_at)}</div>}
+              </div>
+            </div>
+          );
+        })}
         {(busy || analyzing) && (
-          <div className="bubble bubble--coach"><span className="spin" /> <span className="body-sm" style={{ marginLeft: 6 }}>le coach réfléchit…</span></div>
+          <div className="chat-row chat-row--coach">
+            <div className="chat-avatar">⬡</div>
+            <div className="chat-dots"><span /><span /><span /></div>
+          </div>
         )}
         <div ref={endRef} />
       </div>
@@ -104,26 +113,28 @@ export function CoachView() {
       <div className="coach-input">
         <input
           className="input"
-          placeholder="Demande conseil à ton coach…"
+          placeholder="Demande à ton coach…"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') send(); }}
         />
-        <button className="btn btn--primary" onClick={send} disabled={busy || !input.trim()}>➤</button>
+        <button className={`coach-send${input.trim() ? ' coach-send--on' : ''}`} onClick={send} disabled={busy || !input.trim()} aria-label="Envoyer">
+          <Icon name="send" size={16} />
+        </button>
       </div>
     </div>
   );
 }
 
 /** Rendu texte avec **gras** et sauts de ligne. */
-function Rich({ text }: { text: string }) {
+function Rich({ text, strongColor = 'var(--pulse)' }: { text: string; strongColor?: string }) {
   return (
     <>
       {text.split('\n').map((line, i) => (
         <p key={i} style={{ margin: i ? '4px 0 0' : 0 }}>
           {line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
             part.startsWith('**') && part.endsWith('**')
-              ? <strong key={j} className="text-plasma">{part.slice(2, -2)}</strong>
+              ? <strong key={j} style={{ color: strongColor }}>{part.slice(2, -2)}</strong>
               : <span key={j}>{part}</span>
           )}
         </p>
