@@ -4,6 +4,10 @@ import { api } from '../../lib/api';
 import { BarChart } from '../../components/Charts';
 
 interface SleepPhases { deep_min?: number; rem_min?: number; light_min?: number; awake_min?: number; }
+interface Wellness {
+  resting_hr?: number; steps?: number; stress_avg?: number;
+  body_battery_high?: number; body_battery_low?: number; intensity_min?: number;
+}
 interface SleepNight {
   date: string;
   duration_min: number;
@@ -13,6 +17,7 @@ interface SleepNight {
   phases?: SleepPhases | null;
   hrv_ms?: number | null;
   resting_hr?: number | null;
+  raw?: { wellness?: Wellness } | null;
 }
 
 interface SleepData {
@@ -109,12 +114,21 @@ export function SleepView() {
         <div className="card">
           <div className="section-label">Phases — nuit du {frDay(selDate)}</div>
           <PhaseBar phases={selPhases!} total={selExisting.duration_min} />
-          {(selExisting.hrv_ms || selExisting.resting_hr) && (
-            <div className="row" style={{ gap: 18, marginTop: 12 }}>
-              {selExisting.hrv_ms ? <Metric label="VFC nuit" value={`${selExisting.hrv_ms} ms`} /> : null}
-              {selExisting.resting_hr ? <Metric label="FC repos" value={`${selExisting.resting_hr} bpm`} /> : null}
-            </div>
-          )}
+          {(() => {
+            const w = selExisting.raw?.wellness;
+            const m: Array<{ label: string; value: string }> = [];
+            if (selExisting.hrv_ms) m.push({ label: 'VFC nuit', value: `${selExisting.hrv_ms} ms` });
+            if (selExisting.resting_hr) m.push({ label: 'FC repos', value: `${selExisting.resting_hr} bpm` });
+            if (w?.stress_avg != null) m.push({ label: 'Stress moy.', value: `${w.stress_avg}` });
+            if (w?.body_battery_high != null) m.push({ label: 'Body Battery', value: `${w.body_battery_low ?? '?'}–${w.body_battery_high}` });
+            if (w?.steps != null) m.push({ label: 'Pas', value: w.steps.toLocaleString('fr') });
+            if (w?.intensity_min != null) m.push({ label: 'Min. intensité', value: `${w.intensity_min}` });
+            return m.length ? (
+              <div className="row wrap" style={{ gap: 18, marginTop: 12 }}>
+                {m.map(x => <Metric key={x.label} label={x.label} value={x.value} />)}
+              </div>
+            ) : null;
+          })()}
         </div>
       )}
 
