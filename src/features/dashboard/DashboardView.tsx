@@ -41,6 +41,10 @@ export function DashboardView() {
     queryFn: () => api.get<{ activities: StravaActivity[] }>(`/strava/activities?days=${days}`),
     enabled: !!status?.connected,
   });
+  const { data: sleepData } = useQuery({
+    queryKey: ['sleep'],
+    queryFn: () => api.get<{ nights: Array<{ date: string; duration_min: number; phases?: { deep_min?: number } | null }> }>('/sleep'),
+  });
 
   const [pinned, setPinned] = useState<string[]>([]);
   useEffect(() => { if (dash?.pinned) setPinned(dash.pinned); }, [dash?.pinned]);
@@ -115,6 +119,17 @@ export function DashboardView() {
   const weekly = summary?.weekly ?? [];
   const ctlSeries = history.map(h => Number(h.ctl));
   const ctlLabels = history.map(h => h.date.slice(5));
+
+  // ── Séries pour la section Tendances ──────────────────────────
+  const histLabels = history.map(h => h.date.slice(5));
+  const readinessSeries = history.map(h => Number(h.readiness));
+  const debtSeries = history.map(h => +(Number(h.sleep_debt_min) / 60).toFixed(1));
+  const sleepNights = [...(sleepData?.nights ?? [])].reverse(); // chronologique
+  const sleepBars = sleepNights.map(n => ({ label: n.date.slice(5), value: +(n.duration_min / 60).toFixed(1) }));
+  const deepNights = sleepNights.filter(n => n.phases?.deep_min);
+  const deepAvgH = deepNights.length
+    ? +(deepNights.reduce((s, n) => s + (n.phases!.deep_min || 0), 0) / deepNights.length / 60).toFixed(1)
+    : null;
 
   return (
     <div className="stack">
@@ -263,6 +278,31 @@ export function DashboardView() {
         <div className="card">
           <div className="section-label">Évolution de la forme (CTL)</div>
           <LineChart data={ctlSeries} labels={ctlLabels} color="var(--success)" fmt={(v) => `CTL ${Math.round(v)}`} />
+        </div>
+      )}
+
+      {/* ── Tendances : readiness, sommeil, dette ─────────── */}
+      {readinessSeries.length > 1 && (
+        <div className="card">
+          <div className="section-label">Readiness — évolution</div>
+          <LineChart data={readinessSeries} labels={histLabels} color="var(--plasma)" fmt={(v) => `${Math.round(v)}/100`} />
+        </div>
+      )}
+
+      {sleepBars.length > 1 && (
+        <div className="card">
+          <div className="row between" style={{ marginBottom: 4 }}>
+            <div className="section-label" style={{ marginBottom: 0 }}>Sommeil — {sleepBars.length} nuits</div>
+            {deepAvgH != null && <span className="body-sm">profond ~{deepAvgH} h/nuit</span>}
+          </div>
+          <BarChart data={sleepBars} color="var(--ice)" fmt={(v) => `${v} h`} />
+        </div>
+      )}
+
+      {debtSeries.some(v => v > 0) && (
+        <div className="card">
+          <div className="section-label">Dette de sommeil — évolution</div>
+          <LineChart data={debtSeries} labels={histLabels} color="var(--warning)" fmt={(v) => `${v} h`} />
         </div>
       )}
 
