@@ -49,6 +49,12 @@
   --info-bg:          rgba(123, 191, 234, 0.15);
   --info-border:      rgba(123, 191, 234, 0.30);
 
+  /* Phases de sommeil (Garmin) */
+  --sleep-deep:       #4F6BFF;   /* sommeil profond — récupérateur */
+  --sleep-rem:        #A98BEA;   /* paradoxal / REM */
+  --sleep-light:      #7BBFEA;   /* léger */
+  --sleep-awake:      #E8B86D;   /* éveils */
+
   /* Typography */
   --font-display:     'Syne', sans-serif;
   --font-body:        'Inter', sans-serif;
