@@ -241,6 +241,18 @@ body {
   color: var(--void); background: var(--plasma); border-color: var(--plasma);
 }
 
+/* Éditeur planning jour par jour */
+.daySpec-row { padding: 6px 0; border-bottom: 0.5px solid var(--glass-border); }
+.daySpec-row:last-of-type { border-bottom: none; }
+.sport-toggle {
+  width: 34px; height: 34px; border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+  font-size: 16px; cursor: pointer; transition: all var(--transition-fast);
+  filter: grayscale(0.7); opacity: 0.6;
+}
+.sport-toggle:hover { border-color: var(--glass-border-hover); }
+.sport-toggle--on { border-color: var(--plasma); background: rgba(123,191,234,0.18); filter: none; opacity: 1; }
+
 /* Sélecteur heure / minute */
 .time-stepper { display: flex; align-items: center; gap: 8px; }
 .time-stepper__colon { font-family: var(--font-display); font-size: 22px; color: var(--text-secondary); }

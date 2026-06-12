@@ -17,6 +17,7 @@ const HORIZON = { short: 'Court terme', mid: 'Moyen terme', long: 'Long terme' }
 const STATUS_BADGE: Record<string, string> = { planned: 'badge--blue', completed: 'badge--green', skipped: 'badge--red', modified: 'badge--amber' };
 
 const DAYS = [['L', 0], ['M', 1], ['M', 2], ['J', 3], ['V', 4], ['S', 5], ['D', 6]] as const;
+const DAY_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const SPORTS = [
   { key: 'swim', icon: '🏊', label: 'Nage' },
   { key: 'bike', icon: '🚴', label: 'Vélo' },
@@ -35,6 +36,7 @@ interface Constraints {
   intensity: 'easy' | 'normal' | 'hard';
   sessionTypes: string[];
   notes: string;
+  daySpecs: Record<number, string[]>; // jour (0-6) → disciplines choisies
 }
 
 export function PlanningView() {
@@ -45,7 +47,8 @@ export function PlanningView() {
   const [goalForm, setGoalForm] = useState({ title: '', horizon: 'mid' as Goal['horizon'], target_date: '' });
   const [reconcileId, setReconcileId] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
-  const [cst, setCst] = useState<Constraints>({ sessionsCount: null, days: [], focusSports: [], intensity: 'normal', sessionTypes: [], notes: '' });
+  const [detailed, setDetailed] = useState(false);
+  const [cst, setCst] = useState<Constraints>({ sessionsCount: null, days: [], focusSports: [], intensity: 'normal', sessionTypes: [], notes: '', daySpecs: {} });
 
   const { data: sessions } = useQuery({ queryKey: ['sessions'], queryFn: () => api.get<Session[]>('/training/sessions?from=' + weekStart() + '&to=' + weekEnd()) });
   const { data: goals } = useQuery({ queryKey: ['goals'], queryFn: () => api.get<Goal[]>('/training/goals') });
@@ -56,6 +59,9 @@ export function PlanningView() {
   async function generate() {
     setGenerating(true);
     try {
+      const daySpecs = Object.entries(cst.daySpecs)
+        .filter(([, s]) => s.length)
+        .map(([wd, sports]) => ({ weekday: Number(wd), sports }));
       const constraints = {
         ...(cst.sessionsCount ? { sessionsCount: cst.sessionsCount } : {}),
         days: cst.days,
@@ -63,6 +69,8 @@ export function PlanningView() {
         intensity: cst.intensity,
         sessionTypes: cst.sessionTypes,
         ...(cst.notes.trim() ? { notes: cst.notes.trim() } : {}),
+        // Mode détaillé : prioritaire côté serveur s'il est non vide.
+        ...(detailed && daySpecs.length ? { daySpecs } : {}),
       };
       const r = await api.post<GenResult>('/training/generate', { constraints });
       setGenInfo(r.week);
@@ -101,57 +109,92 @@ export function PlanningView() {
         <div className="card">
           <div className="section-label">Contraintes de la semaine</div>
           <div className="stack" style={{ gap: 14 }}>
-            {/* Nombre de séances */}
-            <div className="row between">
-              <span className="body-sm">Nombre de séances</span>
-              <div className="row" style={{ gap: 6 }}>
-                <button className="step-btn" onClick={() => setCst(c => ({ ...c, sessionsCount: Math.max(2, (c.sessionsCount ?? 5) - 1) }))}>−</button>
-                <span className="mono" style={{ minWidth: 48, textAlign: 'center' }}>{cst.sessionsCount ?? 'auto'}</span>
-                <button className="step-btn" onClick={() => setCst(c => ({ ...c, sessionsCount: Math.min(12, (c.sessionsCount ?? 5) + 1) }))}>+</button>
-                {cst.sessionsCount != null && <button className="btn btn--ghost btn--sm" onClick={() => setCst(c => ({ ...c, sessionsCount: null }))}>auto</button>}
-              </div>
+            {/* Mode : global vs jour par jour */}
+            <div className="segmented">
+              <button className={`seg-btn${!detailed ? ' seg-btn--active' : ''}`} onClick={() => setDetailed(false)}>Global</button>
+              <button className={`seg-btn${detailed ? ' seg-btn--active' : ''}`} onClick={() => setDetailed(true)}>Jour par jour</button>
             </div>
 
-            {/* Jours autorisés */}
-            <div>
-              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Jours d'entraînement {cst.days.length === 0 && <span className="text-muted">· tous</span>}</span>
-              <div className="row" style={{ gap: 6 }}>
-                {DAYS.map(([lbl, idx]) => (
-                  <button key={idx} className={`day-chip${cst.days.includes(idx) ? ' day-chip--active' : ''}`}
-                    onClick={() => setCst(c => ({ ...c, days: toggle(c.days, idx) }))}>{lbl}</button>
+            {!detailed ? (
+              <>
+                {/* Nombre de séances */}
+                <div className="row between">
+                  <span className="body-sm">Nombre de séances</span>
+                  <div className="row" style={{ gap: 6 }}>
+                    <button className="step-btn" onClick={() => setCst(c => ({ ...c, sessionsCount: Math.max(2, (c.sessionsCount ?? 5) - 1) }))}>−</button>
+                    <span className="mono" style={{ minWidth: 48, textAlign: 'center' }}>{cst.sessionsCount ?? 'auto'}</span>
+                    <button className="step-btn" onClick={() => setCst(c => ({ ...c, sessionsCount: Math.min(12, (c.sessionsCount ?? 5) + 1) }))}>+</button>
+                    {cst.sessionsCount != null && <button className="btn btn--ghost btn--sm" onClick={() => setCst(c => ({ ...c, sessionsCount: null }))}>auto</button>}
+                  </div>
+                </div>
+
+                {/* Jours autorisés */}
+                <div>
+                  <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Jours d'entraînement {cst.days.length === 0 && <span className="text-muted">· tous</span>}</span>
+                  <div className="row" style={{ gap: 6 }}>
+                    {DAYS.map(([lbl, idx]) => (
+                      <button key={idx} className={`day-chip${cst.days.includes(idx) ? ' day-chip--active' : ''}`}
+                        onClick={() => setCst(c => ({ ...c, days: toggle(c.days, idx) }))}>{lbl}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Disciplines */}
+                <div>
+                  <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Disciplines {cst.focusSports.length === 0 && <span className="text-muted">· toutes</span>}</span>
+                  <div className="row wrap" style={{ gap: 6 }}>
+                    {SPORTS.map(s => (
+                      <button key={s.key} className={`chip${cst.focusSports.includes(s.key) ? ' chip--active' : ''}`}
+                        onClick={() => setCst(c => ({ ...c, focusSports: toggle(c.focusSports, s.key) }))}>{s.icon} {s.label}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Types de séances */}
+                <div>
+                  <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Types de séances {cst.sessionTypes.length === 0 && <span className="text-muted">· au choix</span>}</span>
+                  <div className="row wrap" style={{ gap: 6 }}>
+                    {SESSION_TYPES.map(t => (
+                      <button key={t} className={`chip${cst.sessionTypes.includes(t) ? ' chip--active' : ''}`}
+                        onClick={() => setCst(c => ({ ...c, sessionTypes: toggle(c.sessionTypes, t) }))}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Mode détaillé : pour chaque jour, choisis les disciplines */
+              <div className="stack" style={{ gap: 8 }}>
+                <span className="body-sm text-muted">Choisis, jour par jour, les disciplines voulues. Une séance sera créée par discipline cochée.</span>
+                {DAYS.map(([, idx]) => (
+                  <div key={idx} className="row between daySpec-row">
+                    <span className="body-sm" style={{ minWidth: 70 }}>{DAY_FULL[idx]}</span>
+                    <div className="row wrap" style={{ gap: 6, justifyContent: 'flex-end' }}>
+                      {SPORTS.map(s => {
+                        const on = (cst.daySpecs[idx] ?? []).includes(s.key);
+                        return (
+                          <button key={s.key} title={s.label}
+                            className={`sport-toggle${on ? ' sport-toggle--on' : ''}`}
+                            onClick={() => setCst(c => ({ ...c, daySpecs: { ...c.daySpecs, [idx]: toggle(c.daySpecs[idx] ?? [], s.key) } }))}>
+                            {s.icon}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
+                <span className="body-sm" style={{ textAlign: 'right' }}>
+                  {Object.values(cst.daySpecs).reduce((n, s) => n + s.length, 0)} séance(s) planifiée(s)
+                </span>
               </div>
-            </div>
+            )}
 
-            {/* Disciplines */}
-            <div>
-              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Disciplines {cst.focusSports.length === 0 && <span className="text-muted">· toutes</span>}</span>
-              <div className="row wrap" style={{ gap: 6 }}>
-                {SPORTS.map(s => (
-                  <button key={s.key} className={`chip${cst.focusSports.includes(s.key) ? ' chip--active' : ''}`}
-                    onClick={() => setCst(c => ({ ...c, focusSports: toggle(c.focusSports, s.key) }))}>{s.icon} {s.label}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Intensité */}
+            {/* Intensité (commun aux deux modes) */}
             <div>
               <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Intensité globale</span>
               <div className="segmented">
                 {INTENSITY.map(it => (
                   <button key={it.key} className={`seg-btn${cst.intensity === it.key ? ' seg-btn--active' : ''}`}
                     onClick={() => setCst(c => ({ ...c, intensity: it.key }))}>{it.label}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* Types de séances */}
-            <div>
-              <span className="body-sm" style={{ display: 'block', marginBottom: 6 }}>Types de séances {cst.sessionTypes.length === 0 && <span className="text-muted">· au choix</span>}</span>
-              <div className="row wrap" style={{ gap: 6 }}>
-                {SESSION_TYPES.map(t => (
-                  <button key={t} className={`chip${cst.sessionTypes.includes(t) ? ' chip--active' : ''}`}
-                    onClick={() => setCst(c => ({ ...c, sessionTypes: toggle(c.sessionTypes, t) }))}>{t}</button>
                 ))}
               </div>
             </div>
